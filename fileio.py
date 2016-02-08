@@ -26,9 +26,6 @@ series data. On the other hand, 'separate' style keeps the data separate.
 Note 3: Order of Data flow
 ..........................
 readskeletaltree
-readallfiles_concat
-readallfiles_separate
-writeAll
 rdstartstop             --> start stop frame number
 readdatafile            --> (data output)
 |    subsample          --> (data output) [call before clean]
@@ -65,8 +62,7 @@ def readskeletaltree(treeFilename):
         nodes = dict((elem[0].strip(),int(elem[1])) for elem in nodeInfo)
         assert 'Edges:' in allDat
         idx = allDat.index('Edges:')
-        edges = np.array([elem.split(',') for elem in allDat[idx+1:]][:-1]\
-                                                            ).astype(np.int)
+        edges = np.array([elem.split(',') for elem in allDat[idx+1:]][:-1]).astype(np.int)
         return nodes,edges
 
 # Reads the data file (10.1.csv etc.) for the skeleton 
@@ -82,6 +78,27 @@ def readdatafile(csvFileName):
     data = csvData[:,datIdx] 
     data_header = [header[L] for L in datIdx]
     return data,data_header
+    
+# **** Depricated **** Use pos2angle instead  
+#def readorients(csvFileName,absolute=False):
+#    with open(csvFileName) as f:
+#        header = f.readline().split(',')[0:-1]
+#        csvData = [x.split(',') for x in f.readlines()]
+#        csvData = np.array([x[0:-1] for x in csvData]).astype(np.float)
+#    boneStartId = [i for i,x in enumerate(header) if x=='Start_Joint']
+#    boneEndId = [i for i,x in enumerate(header) if x=='End_Joint']
+#    absOrientId = [i for i,x in enumerate(header) if x.startswith('Absolute_Orientation')]
+#    hieOrientId = [i for i,x in enumerate(header) if x.startswith('Hierarchical_Orientation')]
+#    bones=zip(csvData[0,boneStartId].astype(int),csvData[0,boneEndId].astype(int))
+#    if absolute:
+#        data = csvData[:,absOrientId]
+#        data_header=[header[item] for item in absOrientId]
+#    else:
+#        data = csvData[:,hieOrientId]
+#        data_header=[header[item] for item in hieOrientId]
+#    data = np.concatenate( (csvData[:,:2],data),axis=1)
+#    return data,data_header,bones
+    
 
 # subsample the data. The first two columns (Timeframe and Timestamp)
 # are automatically adjusted.
@@ -104,48 +121,49 @@ def clean(data,stframe,enframe):
     data = data[idx,:]
     return data
 
+# ***** Data invariancy is depricated. Use joint orientation instead ******
 # Calculates invarient feature by translating the origin in the body
 # It only works on joint coordinates
 # Foot_left = 15 and Foot_Right = 19 
 # HIP_LEFT = 12 and HIP_RIGHT = 16
-def calcinvarient(data):
-    # Translation Invaariance
-    # =======================
-    # Origin is set to the average of left and right foot
-    ref_x,ref_y,ref_z = ((data[:,2+15*3] + data[:,2+19*3])/2.)[None].T,\
-                        ((data[:,3+15*3] + data[:,3+19*3])/2.)[None].T,\
-                        ((data[:,4+15*3] + data[:,4+19*3])/2)[None].T
-    data[:,2::3] = data[:,2::3] - ref_x # x component
-    data[:,3::3] = data[:,3::3] - ref_y # y component
-    data[:,4::3] = data[:,4::3] - ref_z # z component
-
-    # Rotation Invariance
-    # ===================
-    # Represent the data in 3D format
-    m,n = np.shape(data)
-    dat3d = np.reshape(data[:,2:],(m,(n-2)/3,3))
-    leftH = dat3d[:,12,:]
-    rightH = dat3d[:,16,:]
-    hipVec = leftH - rightH
-    hipVec = hipVec/np.linalg.norm(hipVec,axis=1)[None].T
-    # Unit vector towards hipVec 90 rotated counterclockwise about y axis
-    rotcc90=np.array([[0,0,-1],[0,1,0],[1,0,0]])
-    uorient = rotcc90.dot(hipVec.T).T
-    # cosangle between -x axis and uorient projected on xz plane
-    cos_posx = (-1*uorient[:,0])/np.linalg.norm(uorient[:,[0,2]],axis=1)
-    #th = np.arccos(cos_negz)*np.sign(cos_posx)
-    th = np.arccos(cos_posx) - np.pi/2
-    for i in range(len(th)):
-        invrot = np.array([[np.cos(th[i]),0,np.sin(th[i])],[0,1,0],\
-        [-1*np.sin(th[i]),0,np.cos(th[i])]])
-        dat3d[i,:,:]=invrot.dot(dat3d[i,:,:].T).T
-    data[:,2:]=np.reshape(dat3d,(m,n-2))
-    
-    # Scale Invariance
-    # ================
-    height = np.linalg.norm(dat3d[:,3,:],axis=1)   # Head = 3
-    data[:,2:]=data[:,2:]/height[None].T
-    return data,np.concatenate((ref_x,ref_y,ref_z),axis=1),th,height
+#def calcinvarient(data):
+#    # Translation Invaariance
+#    # =======================
+#    # Origin is set to the average of left and right foot
+#    ref_x,ref_y,ref_z = ((data[:,2+15*3] + data[:,2+19*3])/2.)[None].T,\
+#                        ((data[:,3+15*3] + data[:,3+19*3])/2.)[None].T,\
+#                        ((data[:,4+15*3] + data[:,4+19*3])/2)[None].T
+#    data[:,2::3] = data[:,2::3] - ref_x # x component
+#    data[:,3::3] = data[:,3::3] - ref_y # y component
+#    data[:,4::3] = data[:,4::3] - ref_z # z component
+#
+#    # Rotation Invariance
+#    # ===================
+#    # Represent the data in 3D format
+#    m,n = np.shape(data)
+#    dat3d = np.reshape(data[:,2:],(m,(n-2)/3,3))
+#    leftH = dat3d[:,12,:]
+#    rightH = dat3d[:,16,:]
+#    hipVec = leftH - rightH
+#    hipVec = hipVec/np.linalg.norm(hipVec,axis=1)[None].T
+#    # Unit vector towards hipVec 90 rotated counterclockwise about y axis
+#    rotcc90=np.array([[0,0,-1],[0,1,0],[1,0,0]])
+#    uorient = rotcc90.dot(hipVec.T).T
+#    # cosangle between -x axis and uorient projected on xz plane
+#    cos_posx = (-1*uorient[:,0])/np.linalg.norm(uorient[:,[0,2]],axis=1)
+#    #th = np.arccos(cos_negz)*np.sign(cos_posx)
+#    th = np.arccos(cos_posx) - np.pi/2
+#    for i in range(len(th)):
+#        invrot = np.array([[np.cos(th[i]),0,np.sin(th[i])],[0,1,0],\
+#        [-1*np.sin(th[i]),0,np.cos(th[i])]])
+#        dat3d[i,:,:]=invrot.dot(dat3d[i,:,:].T).T
+#    data[:,2:]=np.reshape(dat3d,(m,n-2))
+#    
+#    # Scale Invariance
+#    # ================
+#    height = np.linalg.norm(dat3d[:,3,:],axis=1)   # Head = 3
+#    data[:,2:]=data[:,2:]/height[None].T
+#    return data,np.concatenate((ref_x,ref_y,ref_z),axis=1),th,height
 
 # Read the start and end frame numbers for each speach
 def rdstartstop(labeldataFile='Data/labeldata.csv'):
@@ -157,24 +175,25 @@ def rdstartstop(labeldataFile='Data/labeldata.csv'):
         endframes = {item.split(',')[0]:int(item.split(',')[3]) \
         for item in alldata}
     return startframes, endframes
-    
-# returns the x,y,z columns for the specified joint locations only
-def getjointdata(data,joints):
-    # If scalar, convert to tuple
-    if isinstance(joints,tuple) == False and \
-        isinstance(joints,list) == False:
-        joints = (joints,)
-    else:
-        joints = sorted(joints)
-    firstTime = True
-    for ajoint in joints:
-        temp = data[:,(2+3*ajoint):(2+3*ajoint+3)]
-        if firstTime:
-            X = temp.copy()
-            firstTime = False
-        else:
-            X = np.concatenate((X,temp),axis=1)
-    return X
+  
+# **** Depricated **** Use pos2angle instead  
+## returns the x,y,z columns for the specified joint locations only
+#def getjointdata(data,joints):
+#    # If scalar, convert to tuple
+#    if isinstance(joints,tuple) == False and \
+#        isinstance(joints,list) == False:
+#        joints = (joints,)
+#    else:
+#        joints = sorted(joints)
+#    firstTime = True
+#    for ajoint in joints:
+#        temp = data[:,(2+3*ajoint):(2+3*ajoint+3)]
+#        if firstTime:
+#            X = temp.copy()
+#            firstTime = False
+#        else:
+#            X = np.concatenate((X,temp),axis=1)
+#    return X
 
 # Pad the end of the first axis with nPad number of null rows. Frame number and
 # Time stamps for the rows are computed automatically for the null rows
@@ -193,13 +212,15 @@ def vcat(dat1,dat2):
     return np.concatenate((dat1[:-1,:],dat2),axis=0)
 
 # Read a single file and preprocess accordingly
+# It consists of only cropping the signal according to previous convention
 def preprocess(filename,stenfile='Data/labeldata.csv'):
     data,header = readdatafile(filename)
     stfr,enfr = rdstartstop(stenfile)
     if filename[-8:-4] in stfr.keys():
         data = clean(data,stfr[filename[-8:-4]],enfr[filename[-8:-4]])
-    data,tx,th,ht = calcinvarient(data)
-    return data,header,tx,th,ht
+    # Data invariancy is depricated. Use joint orientation instead
+    #data,tx,th,ht = calcinvarient(data)
+    return data,header
 
 # Transforms data into PCA domain
 def txfmdata(data):
@@ -212,6 +233,79 @@ def txfmdata(data):
     princomps = v.T[:,idx]
     X_proj = X.dot(princomps)
     return X_proj,princomps,x_mean
+
+# Returns the column numbers for a particular joint
+def __jcols(jointid):
+    return (2+jointid*3,3+jointid*3,4+jointid*3)
+
+# Calculate the orientations (in Quaternion) from two unit bone vectors
+# Returns the axis of orientation and sin(theta) where theta represents the 
+# orientation angle with respect to the axis. 
+# prevU represents the previous unit bone vector.
+def calcq(v1,v2):
+    costh = np.sum(v1*v2,axis=1)
+    w = np.sqrt(0.5*(1.0+costh))[None].T
+    u = np.cross(v1,v2)/(2.0*w)
+    return np.concatenate((w,u),axis=1)
+
+# Calculate the conjugate of q
+def __cnjq(q):
+    q[:,1:]*=-1.0
+    return q
+# Calcualtes the product of two quaternions
+def __quatprod(q1,q2):
+    w = q1[:,0]*q2[:,0] - np.sum(q1[:,1:]*q2[:,1:],axis=1)
+    u = q1[:,0][None].T*q2[:,1:] + q2[:,0][None].T*q1[:,1:] + np.cross(q1[:,1:],q2[:,1:])
+    return np.concatenate((w[None].T,u),axis=1)
+## Rotate a vector v with a quarternion q. This is a faster
+## equivalent of q*v*congugate(q)
+def rotvec(v,q):
+    if len(v)!=len(q):
+        raise ValueError('Length of the first dimension must match')
+    if np.size(v,axis=1)<np.size(q,axis=1):
+        v = np.concatenate((np.zeros((len(v),1)),v),axis=1)
+    return __quatprod(__quatprod(q,v),__cnjq(q))[:,1:]
+    
+# Calculate the orientations of the bone vectors.
+# The global skeletal position is saved in orient
+def jangles(data,bones):
+    bone,bonelen,orient={},{},{}
+    # Reference vector
+    refu = (np.array([[0],[0],[1]]).dot(np.ones((1,len(data))))).T
+    # global position/orientation vector
+    bone = data[:,__jcols(0)]
+    # represent all the joints in terms of glpos vector
+    for i in range(20):
+        data[:,__jcols(i)]-=glpos
+    # Bone-0 represents the global position/orientation info
+    bonelen[0] = np.mean(np.linalg.norm(glpos,axis=1))
+    glpos /= bonelen[0]
+    orient[0,0]=calcq(refu,glpos)
+    
+    for abone in bones.tolist():
+        # Get the current bone vector
+        bonevec = data[:,__jcols(abone[1])] - data[:,__jcols(abone[0])]
+        # Get the average length of the bone
+        bonelen[abone[1]] = np.mean(np.linalg.norm(bonevec,axis=1))
+        # Save normalized bone vector
+        bonevec /=np.linalg.norm(bonevec,axis=1)[None].T
+        bone[abone[1]]=bonevec
+        # Orientation of each (normalized) bone w.r.t. its parent (normalized) bone
+        orient[abone[0],abone[1]]=calcq(bone[abone[0]],bone[abone[1]])
+    return orient,bonelen
+
+# Converts from orientation to 3d coordinates
+# bonelen is person dependent. orient[0,0] is global
+def orient2coord(orient,bonelen,bones):
+    bone={}
+    refu = (np.array([[0],[0],[1]]).dot(np.ones((1,len(orient[0,0]))))).T
+    bone[0] = rotvec(refu,orient[0,0])
+    for abone in bones.tolist():
+        bone[abone[1]]=rotvec(bone[abone[0]],orient[abone[0],abone[1]])
+#    for i in range(1,20):
+#        bone[i]+=bone[i-1]*bonelen[i-1]
+    return np.concatenate([value for key,value in bone.items()],axis=1)
+        
 
 ############################## Toy dataset ####################################
 # Generate and return a toy data
@@ -345,3 +439,31 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+
+# Checks if the quaternion calculations are correct
+# converts a vector to vector orientation into quaternion
+# and then applies the quaternion transformation to the first
+# vector in order to get the second
+def unittest1():
+    data,header = readdatafile('Data/13.3.csv')
+    v1 = data[:,__jcols(0)] - data[:,__jcols(1)] # bone 0-1
+    u1 = v1/np.linalg.norm(v1,axis=1)[None].T
+    refu = (np.array([[0],[1./np.sqrt(2)],[1./np.sqrt(2)]]).dot(np.ones((1,len(u1))))).T
+    # Notice both refu and u1 must be normalized    
+    q = calcq(refu,u1)
+    u2 = rotvec(refu,q)
+        
+    print np.allclose(u1,u2)
+
+# Checks if the coordinate to angle conversions are correct
+def unittest2():
+    joints,bones = readskeletaltree('Data/KinectSkeleton.tree')
+    data,header = readdatafile('Data/13.3.csv')
+    orient,bonelen = jangles(data,bones)
+    data = np.concatenate((data[:,:2],orient2coord(orient,bonelen,bones)),axis=1)
+    import skelplot_mayavi as plt
+    plt.animateSkeleton(data)
+    
+
+if __name__=='__main__':
+    unittest2()
