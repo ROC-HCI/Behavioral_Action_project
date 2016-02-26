@@ -1,9 +1,3 @@
-# Alternate version of skeletonPlotter.py for better visualization
-# -------------------------------------------------------------------------------
-#    Coded by Md. Iftekhar Tanveer (itanveer@cs.rochester.edu)
-#    Rochester Human-Computer Interaction (ROCHCI)
-#    University of Rochester
-# -------------------------------------------------------------------------------
 from mayavi import mlab
 import numpy as np
 from math import sqrt
@@ -83,13 +77,6 @@ def unitTest1(datafile='Data/13.3.csv'):
     x_proj,eigvec,x_mean = fio.txfmdata(data)
     animateSkeleton(x_proj.dot(eigvec.T)+x_mean)
 
-def unitTest2(datafile='Data/31.1.csv'):
-    import fileio as fio
-    data,header=fio.readdatafile(datafile)
-    data1,header=fio.readdatafile('Data/13.3.csv')
-    animateSkeleton(fio.vcat(data1[0:150,:],data[0:150,:]))
-    
-
 def main():
     import fileio as fio
     import sys
@@ -99,4 +86,4 @@ def main():
 
 
 if __name__ == '__main__':
-    unitTest1()
+    main()

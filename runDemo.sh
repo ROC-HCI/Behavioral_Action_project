@@ -31,10 +31,10 @@
 ##################### OPTIMIZER DEMO WITH A REAL DATA ##################
 ########################################################################
 # One datafile at a time
-python sisc_wrapper.py -Beta 0.035 -i 'Data/13.3.csv'
+# python sisc_wrapper.py -Beta 0.035 -i 'Data/13.3.csv'
 #
 # run sisc with compressed data (PCA over frames)
-# python sisc_wrapper.py -diff_thresh 1e-6 -Beta 0.2 -D 5 --pca -i 'Data/13.3.csv'
+python sisc_wrapper.py -diff_thresh 1e-6 -Beta 0.2 -D 5 --pca -i 'Data/13.3.csv'
 
 
 ########################################################################
@@ -63,10 +63,10 @@ python sisc_wrapper.py -Beta 0.035 -i 'Data/13.3.csv'
 # python filter.py Results/*.mat --Lcurve
 
 # Show a skeleton animation
-# python skelplot_mayavi.py Data/13.3.csv
+# python skelplot_mayavi.py Data/13.1.csv
 
 # Show a skeleton animation that is inflated from compressed data
-# python -c "import skelplot_mayavi as my; my.unitTest1('Data/13.3.csv')"
+# python -c "import skelplot_mayavi as my; my.unitTest1('Data/13.1.csv')"
 
 # Show the results (psi and alpha)
 # python filter.py --showresults Results/*.mat
