@@ -156,16 +156,26 @@ def toyTest(args):
         'M':args.M,'D':args.D,'Beta':args.Beta,'X':X,'alpha_origin':alpha,\
         'psi_origin':psi,'Data_Origin':'Toy'},do_compression=True)
 
+def callSGD(args):
+    print 'SGD module ignores the PCA request.'
+    print args.i
+    
+
 # Work with real data
 def realTest(args):
+    # For batch processing
     if len(args.i)>1:
-        print 'Currently SISC takes only one data file'
-        return
+        print 'Invocking Stochastic Gradient Descent (SGD) over multiple input data'
+        callSGD(args)
+    # For single data processing
     if not args.applyPCA:
         data,header,tx,th,ht = fio.preprocess(args.i[0])
         X = data[:,2:]
     else:
         data,header = fio.readdatafile(args.i[0])
+        stfr,enfr = fio.rdstartstop()
+        if args.i[0][-8:-4] in stfr.keys() and args.i[0][-8:-4] in enfr.keys():
+            data = fio.clean(data,stfr[args.i[0][-8:-4]],enfr[args.i[0][-8:-4]])
         X,princomps,Xmean = fio.txfmdata(data)    
     # Pad the data to make it power of two and then 
     # apply Convolutional Sparse Coding

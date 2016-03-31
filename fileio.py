@@ -150,12 +150,12 @@ def calcinvarient(data):
 # Read the start and end frame numbers for each speach
 def rdstartstop(labeldataFile='Data/labeldata.csv'):
     with open(labeldataFile,'r') as readfile:
+        # Read and split data
         alldata = readfile.readlines()
         alldata = alldata[0].split('\r')
-        startframes = {item.split(',')[0]:int(item.split(',')[1]) \
-        for item in alldata}
-        endframes = {item.split(',')[0]:int(item.split(',')[3]) \
-        for item in alldata}
+        # Create dictionary out of startframe (col 1) and endframe (col 3)
+        startframes = {item.split(',')[0]:int(item.split(',')[1]) for item in alldata}
+        endframes = {item.split(',')[0]:int(item.split(',')[3]) for item in alldata}
     return startframes, endframes
     
 # returns the x,y,z columns for the specified joint locations only
@@ -196,7 +196,8 @@ def vcat(dat1,dat2):
 def preprocess(filename,stenfile='Data/labeldata.csv'):
     data,header = readdatafile(filename)
     stfr,enfr = rdstartstop(stenfile)
-    data = clean(data,stfr[filename[-8:-4]],enfr[filename[-8:-4]])
+    if filename[-8:-4] in stfr.keys() and filename[-8:-4] in enfr.keys():
+        data = clean(data,stfr[filename[-8:-4]],enfr[filename[-8:-4]])
     data,tx,th,ht = calcinvarient(data)
     return data,header,tx,th,ht
 
@@ -211,6 +212,70 @@ def txfmdata(data):
     princomps = v.T[:,idx]
     X_proj = X.dot(princomps)
     return X_proj,princomps,x_mean
+
+###################### Quaternion Related Codes ###########################
+# Returns the column numbers for a particular joint
+def __jcols(jointid):
+    return (2+jointid*3,3+jointid*3,4+jointid*3)
+
+# Calculate the orientations (in Quaternion) from two unit bone vectors
+# Returns the axis of orientation and sin(theta) where theta represents the 
+# orientation angle with respect to the axis. 
+# prevU represents the previous unit bone vector.
+def calcq(v1,v2):
+    costh = np.sum(v1*v2,axis=1)
+    w = np.sqrt(0.5*(1.0+costh))[None].T
+    u = np.cross(v1,v2)/(2.0*w)
+    return np.concatenate((w,u),axis=1)
+
+# Calculate the conjugate of q
+def __cnjq(q):
+    q[:,1:]*=-1.0
+    return q
+# Calcualtes the product of two quaternions
+def __quatprod(q1,q2):
+    w = q1[:,0]*q2[:,0] - np.sum(q1[:,1:]*q2[:,1:],axis=1)
+    u = q1[:,0][None].T*q2[:,1:] + q2[:,0][None].T*q1[:,1:] + np.cross(q1[:,1:],q2[:,1:])
+    return np.concatenate((w[None].T,u),axis=1)
+## Rotate a vector v with a quarternion q. This is a faster
+## equivalent of q*v*congugate(q)
+def rotvec(v,q):
+    if len(v)!=len(q):
+        raise ValueError('Length of the first dimension must match')
+    if np.size(v,axis=1)<np.size(q,axis=1):
+        v = np.concatenate((np.zeros((len(v),1)),v),axis=1)
+    return __quatprod(__quatprod(q,v),__cnjq(q))[:,1:]
+    
+# Calculate the orientations of the bone vectors.
+# The global skeletal position is saved in orient
+def jangles(data,bones):
+    bone,bonelen,orient={},{},{}
+    # Reference vector
+    refu = (np.array([[0],[0],[-1]]).dot(np.ones((1,len(data))))).T
+    
+    for abone in bones.tolist():
+        # Get the current bone vector
+        bonevec = data[:,__jcols(abone[1])] - data[:,__jcols(abone[0])]
+        # Get the average length of the bone
+        bonelen[abone[1]] = np.mean(np.linalg.norm(bonevec,axis=1))
+        # Save normalized bone vector
+        bonevec /=np.linalg.norm(bonevec,axis=1)[None].T
+        bone[abone[1]]=bonevec
+        # Orientation of each (normalized) bone w.r.t. its parent (normalized) bone
+        orient[abone[0],abone[1]]=calcq(bone[abone[0]],bone[abone[1]])
+    return orient,bonelen
+
+# Converts from orientation to 3d coordinates
+# bonelen is person dependent. orient[0,0] is global
+def orient2coord(orient,bonelen,bones):
+    bone={}
+    refu = (np.array([[0],[0],[1]]).dot(np.ones((1,len(orient[0,0]))))).T
+    bone[0] = rotvec(refu,orient[0,0])
+    for abone in bones.tolist():
+        bone[abone[1]]=rotvec(bone[abone[0]],orient[abone[0],abone[1]])
+#    for i in range(1,20):
+#        bone[i]+=bone[i-1]*bonelen[i-1]
+    return np.concatenate([value for key,value in bone.items()],axis=1)
 
 ############################## Toy dataset ####################################
 # Generate and return a toy data
@@ -344,3 +409,8 @@ def toyExample_large_3d_multicomp(N=8192,M=64):
     psi[:,1,1] = np.pi - np.abs(xVal/2.0)
     psi[:,2,1] = np.abs(xVal/2.0)
     return alpha,psi
+    
+## Debug module
+if __name__=='__main__':
+    x = rdstartstop()
+    print x

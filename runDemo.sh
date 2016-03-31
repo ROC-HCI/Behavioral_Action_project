@@ -34,7 +34,10 @@
 # python sisc_wrapper.py -Beta 0.035 -i 'Data/13.3.csv'
 #
 # run sisc with compressed data (PCA over frames)
-python sisc_wrapper.py -diff_thresh 1e-6 -Beta 0.2 -D 5 --pca -i 'Data/13.3.csv'
+# python sisc_wrapper.py -diff_thresh 1e-6 -Beta 0.2 -D 5 --pca -i 'Data/13.3.csv'
+
+# Run with multiple data files and Stochastic Gradient Descent (SGD)
+python sisc_wrapper.py -diff_thresh 1e-6 -Beta 0.2 -D 5 -i ~/Data/ROCSpeak_BL/allSkeletons/*.csv
 
 
 ########################################################################
