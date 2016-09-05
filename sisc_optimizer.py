@@ -213,7 +213,8 @@ def optimize_proxim(X,M,D,beta,iter_thresh=65536,\
     iter = 0
     N,K = np.shape(X)
     # M and N must be nonzero and power of two
-    assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
+    # assert (M&(M-1)==0) and (N&(N-1)==0) and M!=0 and N!=0
+    assert M % 2 == 0  and N % 2 == 0 and M!=0 and N!=0
     thresh = thresh*N/256   # correction for signal lenght
     sigPerSampl = np.linalg.norm(X)/N # Signal per sample
     workers = Pool(processes=totWorker)   # Assign workers for parallel proc

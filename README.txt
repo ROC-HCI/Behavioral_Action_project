@@ -5,6 +5,12 @@ Unsupervised Extraction of Human Behavior from MOCAP Signal
     University of Rochester
 -------------------------------------------------------------------------------
 
+AUTOMANNER code as it resides in the Behavioral_Action_project in 
+Bluehive (University of Rochester Cluster).
+It is the latest working snapshot from bluehive. It uses many different
+nodes in bluehive for parallel running of the automanner code and getting the best
+result. This code is important for running the AutoManner_GUI properly.
+
 OS Compatibility:
 ================
 Code tested in OS X 10, Windows, and Ubuntu
